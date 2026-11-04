@@ -28,17 +28,27 @@
         </div>
         <div id="estado-folio" class="estado-folio"></div>
 
-        
         <div class="fila-dos">
           <div>
-            <label for="nombre-pieza">Nombre de la pieza</label>
-            <input type="text" id="nombre-pieza" />
+            <label for="op">OP</label>
+            <input type="text" id="op" />
           </div>
+          <div>
+            <label for="estandar-pieza">Estándar de la pieza</label>
+            <input type="text" id="estandar-pieza" required />
+          </div>
+        </div>
+
+        <div class="fila-dos">
           <div>
             <label for="cliente">Cliente</label>
             <input type="text" id="cliente" />
           </div>
-        </div>
+          <div>
+            <label for="fechaFactura">FechaFactura</label>
+            <input type="date" id="fechaFactura" />
+         </div>
+      </div>
 
         <div class="fila-dos">
           <div>
@@ -53,6 +63,17 @@
 
         <div class="fila-dos">
           <div>
+            <label for="factura">Factura</label>
+            <input type="number" id="factura" min="0" step="1" inputmode="numeric" />
+          </div>
+          <div>
+            <label for="medidas">Medidas</label>
+            <input type="text" id="medidas" placeholder="Ej. 120x80x45" autocomplete="off" />
+          </div>
+        </div>
+
+        <div class="fila-dos">
+          <div>
             <label for="zona-origen">Zona de origen</label>
             <select id="zona-origen" required></select>
           </div>
@@ -61,10 +82,11 @@
             <select id="zona-destino" required></select>
           </div>
         </div>
-<div class="img-zoom-container">
-    <img id="myimage" src="zona.png" alt="Zona">
-    <div id="myresult" class="img-zoom-result"></div>
-</div>
+
+        <div class="img-zoom-container">
+          <img id="myimage" src="zona.png" alt="Plano de zonas" />
+        </div>
+
         <label for="comentarios">Comentarios</label>
         <textarea id="comentarios"></textarea>
 
