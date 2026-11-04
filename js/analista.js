@@ -10,7 +10,7 @@ const botonGuardar = campo("btn-guardar");
 const estadoFolio = campo("estado-folio");
 const mensaje = campo("mensaje");
 
-const CAMPOS_FICHA = ["op", "estandar-pieza", "cliente", "material", "cantidad", "factura", "medidas", "equipo", "ultima-zona"];
+const CAMPOS_FICHA = ["op", "estandar-pieza", "cliente", "material", "cantidad", "piezas", "fecha-factura", "factura", "medidas", "equipo", "ultima-zona"];
 
 function mostrarMensaje(texto, tipo) {
   mensaje.textContent = texto;
@@ -40,7 +40,7 @@ function llenarFicha(p) {
   campo("material").value = p.material || "";
   campo("cantidad").value = p.cantidad ?? "";
   campo("piezas").value = p.piezas ?? "";
-  campo("fechaFactura").value = p.fechaFactura || "";
+  campo("fecha-factura").value = p.fechaFactura || "";
   campo("factura").value = p.factura ?? "";
   campo("medidas").value = p.medidas || "";
   campo("equipo").value = p.equipo || "";

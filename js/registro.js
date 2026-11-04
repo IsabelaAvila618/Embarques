@@ -46,6 +46,8 @@ function llenarDatosPieza(pieza) {
   campo("cliente").value = pieza.cliente || "";
   campo("material").value = pieza.material || "";
   campo("cantidad").value = pieza.cantidad ?? "";
+  campo("piezas").value = pieza.piezas ?? "";
+  campo("fecha-factura").value = pieza.fechaFactura || "";
   campo("factura").value = pieza.factura ?? "";
   campo("medidas").value = pieza.medidas || "";
   if (pieza.ultimaZona && ZONAS_ORIGEN.includes(pieza.ultimaZona)) {
@@ -54,7 +56,7 @@ function llenarDatosPieza(pieza) {
 }
 
 function limpiarDatosPieza() {
-  ["op", "estandar-pieza", "cliente", "material", "cantidad", "factura", "medidas"].forEach(id => { campo(id).value = ""; });
+  ["op", "estandar-pieza", "cliente", "material", "cantidad", "piezas", "fecha-factura", "factura", "medidas"].forEach(id => { campo(id).value = ""; });
   campo("zona-origen").selectedIndex = 0;
 }
 
@@ -119,6 +121,8 @@ protegerPagina("operador").then((usuario) => {
       cliente: campo("cliente").value.trim(),
       material: campo("material").value.trim(),
       cantidad: textoCantidad === "" ? null : Number(textoCantidad),
+      piezas: campo("piezas").value.trim(),
+      fechaFactura: campo("fecha-factura").value,
       factura: textoFactura === "" ? null : Number(textoFactura),
       medidas
     };
@@ -135,6 +139,8 @@ protegerPagina("operador").then((usuario) => {
       cliente: pieza.cliente,
       material: pieza.material,
       cantidad: pieza.cantidad,
+      piezas: pieza.piezas,
+      fechaFactura: pieza.fechaFactura,
       factura: pieza.factura,
       medidas: pieza.medidas,
       equipo: usuario.equipo,
