@@ -40,17 +40,6 @@ function folioValido(folio) {
   return folio !== "" && !folio.includes("/") && folio !== "." && folio !== "..";
 }
 
-function registrarFecha() {
-    const fechaFactura = document.getElementById("fechaFactura").value;
-
-    if (fechaFactura === "") {
-        alert("Please select a date.");
-    } else {
-        document.getElementById("resultado").textContent =
-            "Registered date: " + fechaFactura;
-    }
-}
-
 function llenarDatosPieza(pieza) {
   campo("op").value = pieza.op || "";
   campo("estandar-pieza").value = pieza.estandar ?? pieza.nombre ?? "";
@@ -174,7 +163,9 @@ protegerPagina("operador").then((usuario) => {
       mostrarEstadoFolio("", "");
       actualizarRelojFecha();
     } catch (error) {
-      mostrarMensaje("No se pudo guardar el registro. Intenta de nuevo.", "error");
+      console.error("Error al guardar el registro:", error);
+      const detalle = error && error.code ? ` (${error.code})` : "";
+      mostrarMensaje("No se pudo guardar el registro. Intenta de nuevo." + detalle, "error");
     }
   });
 });

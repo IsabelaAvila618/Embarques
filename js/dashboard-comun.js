@@ -233,6 +233,7 @@ export function iniciarDashboard(idContenedor) {
         <td>${escaparHtml(r.cliente)}</td>
         <td>${escaparHtml(r.material)}</td>
         <td>${escaparHtml(r.fechaFactura)}</td>
+        <td>${escaparHtml(r.piezas)}</td>
         <td>${escaparHtml(r.cantidad)}</td>
         <td>${escaparHtml(r.factura)}</td>
         <td>${escaparHtml(r.medidas)}</td>

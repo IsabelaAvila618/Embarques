@@ -39,6 +39,8 @@ function llenarFicha(p) {
   campo("cliente").value = p.cliente || "";
   campo("material").value = p.material || "";
   campo("cantidad").value = p.cantidad ?? "";
+  campo("piezas").value = p.piezas ?? "";
+  campo("fechaFactura").value = p.fechaFactura || "";
   campo("factura").value = p.factura ?? "";
   campo("medidas").value = p.medidas || "";
   campo("equipo").value = p.equipo || "";
