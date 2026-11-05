@@ -265,6 +265,7 @@ export function iniciarDashboard(idContenedor) {
         <td>${escaparHtml(r.equipo)}</td>
         <td>${escaparHtml(formatearFechaTexto(ficha?.fechaLiberacion))}</td>
         <td>${escaparHtml(r.comentarios)}</td>
+        <td>${escaparHtml(r.estado)}</td>
       </tr>`;
     }).join("");
     caja.innerHTML = `
@@ -274,7 +275,7 @@ export function iniciarDashboard(idContenedor) {
           <tr>
             <th>Fecha y hora</th><th>Folio</th><th>OP</th><th>Estándar</th><th>Cliente</th><th>Material</th><th>Fecha factura</th><th>Piezas</th>
             <th>Cantidad</th><th>Factura</th><th>Medidas</th><th>Zona origen</th><th>Zona destino</th>
-            <th>Operador</th><th>Equipo</th><th>Fecha liberación</th><th>Comentarios</th>
+            <th>Operador</th><th>Equipo</th><th>Fecha liberación</th><th>Comentarios</th><th>Estado de las piezas</th>
           </tr>
         </thead>
         <tbody>${filas}</tbody>

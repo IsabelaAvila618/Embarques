@@ -147,6 +147,7 @@ protegerPagina("operador").then((usuario) => {
       zonaOrigen,
       zonaDestino,
       comentarios: campo("comentarios").value.trim(),
+      estado: campo("estado").value.trim(),
       nombreOperador: usuario.nombre,
       uidOperador: usuario.uid,
       creadoEn: serverTimestamp()
