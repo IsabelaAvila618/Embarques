@@ -1,16 +1,21 @@
-import { collection, doc, setDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
+import { collection, doc, setDoc, query, orderBy, where, Timestamp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
 import { db } from "./firebase-init.js";
 import { leerDocumento, leerColeccion } from "./lecturas.js";
 import { EQUIPOS } from "./equipos.js";
 import { medidasPendientes } from "./medidas.js";
-import { RACKS, POSICIONES, NIVELES, FRECUENCIAS, FRECUENCIA_DEFAULT, idUbicacion } from "./optimizacion.js";
+import { RACKS, POSICIONES, NIVELES, FRECUENCIAS, FRECUENCIA_DEFAULT, LARGO_NIVEL, ALTURA_NIVEL, idUbicacion, estadoCelda, largoUsado, normalizarCelda, piezasDeCelda } from "./optimizacion.js";
 
 // Dashboard compartido por administradores y analistas: filtros, gráficas y tabla.
 // Se pinta dentro del elemento con el id que se le pase y devuelve { recargar }.
 
 const PLANTILLA = `
+  <div class="barra-actualizar">
+    <button type="button" id="btn-actualizar">&#8635; Actualizar</button>
+    <button type="button" id="btn-recarga-completa" class="secundario">Recarga completa</button>
+    <span id="estado-actualizacion" class="estado-actualizacion"></span>
+  </div>
   <div class="filtros">
-    <div><label for="f-folio">Folio</label><input type="text" id="f-folio" placeholder="Buscar folio..." /></div>
+    <div><label for="f-folio">Pieza</label><input type="text" id="f-folio" placeholder="Buscar pieza..." /></div>
     <div><label for="f-equipo">Equipo</label><select id="f-equipo"><option value="">Todos</option></select></div>
     <div><label for="f-zona-origen">Zona origen</label><input type="text" id="f-zona-origen" placeholder="Ej. A1-N0..." /></div>
     <div><label for="f-zona-destino">Zona destino</label><input type="text" id="f-zona-destino" placeholder="Ej. A1-N0..." /></div>
@@ -18,7 +23,7 @@ const PLANTILLA = `
     <div><label for="f-cliente">Cliente</label><input type="text" id="f-cliente" placeholder="Cliente..." /></div>
     <div><label for="f-op">OP</label><input type="text" id="f-op" placeholder="OP..." /></div>
     <div><label for="f-factura">Factura</label><input type="text" id="f-factura" placeholder="Factura..." /></div>
-    <div><label for="f-piezas">Piezas</label><input type="text" id="f-piezas" placeholder="Piezas..." /></div>
+    <div><label for="f-piezas">Folio</label><input type="text" id="f-piezas" placeholder="Folio..." /></div>
     <div><label for="f-factura-desde">Fecha factura desde</label><input type="date" id="f-factura-desde" /></div>
     <div><label for="f-factura-hasta">Fecha factura hasta</label><input type="date" id="f-factura-hasta" /></div>
     <div><label for="f-desde">Desde</label><input type="date" id="f-desde" /></div>
@@ -28,9 +33,9 @@ const PLANTILLA = `
   </div>
 
   <div class="resumen">
-    <div class="kpi"><span class="kpi-numero" id="kpi-folios">–</span><span class="kpi-texto">Folios preparados</span></div>
+    <div class="kpi"><span class="kpi-numero" id="kpi-folios">–</span><span class="kpi-texto">Piezas preparadas</span></div>
     <div class="kpi"><span class="kpi-numero" id="kpi-movimientos">–</span><span class="kpi-texto">Movimientos registrados</span></div>
-    <div class="kpi kpi-alerta"><span class="kpi-numero" id="kpi-pendientes">–</span><span class="kpi-texto">Folios pendientes de medir</span></div>
+    <div class="kpi kpi-alerta"><span class="kpi-numero" id="kpi-pendientes">–</span><span class="kpi-texto">Piezas pendientes de medir</span></div>
   </div>
 
   <h3 class="titulo-seccion">Racks</h3>
@@ -47,7 +52,7 @@ const PLANTILLA = `
         <div class="rack-simbologia">
           <div><i></i> Disponible</div>
           <div><i class="parcial"></i> Parcialmente ocupado</div>
-          <div><i class="ocupado"></i> Ocupado</div>
+          <div><i class="ocupado"></i> Completo</div>
         </div>
       </div>
     </div>
@@ -55,13 +60,13 @@ const PLANTILLA = `
   </div>
 
   <div class="graficas">
-    <div class="grafica-card"><h3>Folios preparados por operador</h3><div class="grafica-caja"><canvas id="g-operador"></canvas></div></div>
-    <div class="grafica-card"><h3>Folios preparados por equipo</h3><div class="grafica-caja"><canvas id="g-equipo"></canvas></div></div>
-    <div class="grafica-card"><h3>Folios preparados por fecha</h3><div class="grafica-caja"><canvas id="g-fecha"></canvas></div></div>
+    <div class="grafica-card"><h3>Piezas preparadas por operador</h3><div class="grafica-caja"><canvas id="g-operador"></canvas></div></div>
+    <div class="grafica-card"><h3>Piezas preparadas por equipo</h3><div class="grafica-caja"><canvas id="g-equipo"></canvas></div></div>
+    <div class="grafica-card"><h3>Piezas preparadas por fecha</h3><div class="grafica-caja"><canvas id="g-fecha"></canvas></div></div>
     <div class="grafica-card"><h3>Carga pendiente por preparar (sin medidas)</h3><div class="grafica-caja"><canvas id="g-pendiente"></canvas></div></div>
   </div>
 
-  <h3 class="titulo-seccion">Folios pendientes de medir</h3>
+  <h3 class="titulo-seccion">Piezas pendientes de medir</h3>
   <div id="zona-pendientes"></div>
 
   <h3 class="titulo-seccion">Registros</h3>
@@ -243,7 +248,7 @@ export function iniciarDashboard(idContenedor, { puedeConfigurar = false } = {})
   function pintarPendientes(pendientes) {
     const caja = el("zona-pendientes");
     if (pendientes.length === 0) {
-      caja.innerHTML = '<div class="vacio">No hay folios pendientes de medir.</div>';
+      caja.innerHTML = '<div class="vacio">No hay piezas pendientes de medir.</div>';
       return;
     }
     const filas = pendientes.map(p => `
@@ -257,7 +262,7 @@ export function iniciarDashboard(idContenedor, { puedeConfigurar = false } = {})
     caja.innerHTML = `
       <div class="tabla-ajustable tabla-limitada">
       <table>
-        <thead><tr><th>Folio</th><th>OP</th><th>Estándar</th><th>Cliente</th><th>Equipo</th></tr></thead>
+        <thead><tr><th>Pieza</th><th>OP</th><th>Estándar</th><th>Cliente</th><th>Equipo</th></tr></thead>
         <tbody>${filas}</tbody>
       </table>
       </div>`;
@@ -283,7 +288,7 @@ export function iniciarDashboard(idContenedor, { puedeConfigurar = false } = {})
         <td>${escaparHtml(r.piezas)}</td>
         <td>${escaparHtml(r.cantidad)}</td>
         <td>${escaparHtml(r.factura)}</td>
-        <td>${escaparHtml(r.medidas)}</td>
+        <td>${escaparHtml(r.tipo || r.medidas)}</td>
         <td>${escaparHtml(r.zonaOrigen)}</td>
         <td>${escaparHtml(r.zonaDestino)}</td>
         <td>${escaparHtml(nombreOperadorDe(r))}</td>
@@ -298,7 +303,7 @@ export function iniciarDashboard(idContenedor, { puedeConfigurar = false } = {})
       <table>
         <thead>
           <tr>
-            <th>Fecha y hora</th><th>Folio</th><th>OP</th><th>Estándar</th><th>Cliente</th><th>Material</th><th>Fecha factura</th><th>Piezas</th>
+            <th>Fecha y hora</th><th>Pieza</th><th>OP</th><th>Estándar</th><th>Cliente</th><th>Material</th><th>Fecha factura</th><th>Folio</th>
             <th>Cantidad</th><th>Factura</th><th>Medidas</th><th>Zona origen</th><th>Zona destino</th>
             <th>Operador</th><th>Equipo</th><th>Fecha liberación</th><th>Comentarios</th><th>Estado de las piezas</th>
           </tr>
@@ -308,39 +313,60 @@ export function iniciarDashboard(idContenedor, { puedeConfigurar = false } = {})
       </div>`;
   }
 
+  // Niveles de una posición que ya tienen piezas (parciales o completos).
   function ocupadosDePosicion(rack, posicion) {
-    return NIVELES.filter(n => ocupadas[idUbicacion(rack, posicion, n)]).length;
+    return NIVELES.filter(n => estadoCelda(ocupadas[idUbicacion(rack, posicion, n)]) !== "libre").length;
+  }
+
+  function completosDePosicion(rack, posicion) {
+    return NIVELES.filter(n => estadoCelda(ocupadas[idUbicacion(rack, posicion, n)]) === "completa").length;
   }
 
   function pintarDetalleRack() {
     const caja = el("rack-detalle");
     if (!posicionActiva) {
-      caja.innerHTML = '<div class="vacio">Elige una posición del mapa para ver sus folios.</div>';
+      caja.innerHTML = '<div class="vacio">Elige una posición del mapa para ver sus piezas.</div>';
       return;
     }
     const { rack, posicion } = posicionActiva;
+    const ESTADOS = { libre: "Disponible", parcial: "Parcialmente ocupado", completa: "Completo" };
     const filas = [...NIVELES].reverse().map(n => {
-      const folio = ocupadas[idUbicacion(rack, posicion, n)];
-      if (!folio) return `<tr><td>N${n}</td><td colspan="8">Disponible</td></tr>`;
-      const p = piezaPorFolio.get(folio) || {};
-      return `
+      const celda = ocupadas[idUbicacion(rack, posicion, n)];
+      const estado = estadoCelda(celda);
+      if (estado === "libre") return `<tr><td>N${n}</td><td colspan="9">Disponible</td></tr>`;
+      const usado = largoUsado(celda);
+      const estibas = normalizarCelda(celda).estibas;
+      return estibas.map((estiba, k) => estiba.p.map((folio, nivelEstiba) => {
+        const p = piezaPorFolio.get(folio) || {};
+        return `
       <tr>
-        <td>N${n}</td>
-        <td>${escaparHtml(folio)}</td>
+        <td>${k === 0 && nivelEstiba === 0 ? `N${n}<small> ${ESTADOS[estado]} · ${usado} de ${LARGO_NIVEL} in</small>` : ""}</td>
+        <td>${escaparHtml(folio)}${estiba.p.length > 1 ? `<small> (estiba ${k + 1}, lugar ${nivelEstiba + 1})</small>` : ""}</td>
         <td>${escaparHtml(p.piezas)}</td>
         <td>${escaparHtml(p.cantidad)}</td>
         <td>${escaparHtml(p.cliente)}</td>
         <td>${escaparHtml(p.estandar ?? p.nombre)}</td>
         <td>${escaparHtml(p.op)}</td>
-        <td>${escaparHtml(p.medidas || "Pendiente")}</td>
+        <td>${escaparHtml(p.tipo || p.medidas || "Pendiente")}</td>
         <td>${escaparHtml(p.equipo)}</td>
+        <td>${estiba.c ? "Completa" : "Admite más"}</td>
       </tr>`;
+      }).join("")).join("");
+    }).join("");
+    // Esquema del estante: cada nivel es una barra de 96 pulgadas y cada estiba ocupa su largo.
+    const esquema = [...NIVELES].reverse().map(n => {
+      const celda = ocupadas[idUbicacion(rack, posicion, n)];
+      const estibas = normalizarCelda(celda).estibas;
+      const tarimas = estibas.map(e => `<div class="estante-tarima ${e.c ? "completa" : "abierta"}" style="width:${(e.l / LARGO_NIVEL) * 100}%" title="${escaparHtml(e.p.join(", "))}${e.c ? " (estiba completa)" : " (admite más encima)"}">${e.p.length}</div>`).join("");
+      return `<div class="estante-nivel"><span class="estante-etiqueta">N${n}<small>${ALTURA_NIVEL[n]} in</small></span><div class="estante-barra ${estadoCelda(celda)}">${tarimas}</div></div>`;
     }).join("");
     caja.innerHTML = `
       <h4>Posición ${rack}${posicion}</h4>
+      <div class="estante">${esquema}</div>
+      <p class="estante-leyenda"><i class="completa"></i> Estiba completa <i class="abierta"></i> Admite más piezas encima. El número es la cantidad de piezas apiladas.</p>
       <div class="tabla-ajustable">
       <table>
-        <thead><tr><th>Nivel</th><th>Folio</th><th>Piezas</th><th>Cantidad</th><th>Cliente</th><th>Estándar</th><th>OP</th><th>Medidas</th><th>Equipo</th></tr></thead>
+        <thead><tr><th>Nivel</th><th>Pieza</th><th>Folio</th><th>Cantidad</th><th>Cliente</th><th>Estándar</th><th>OP</th><th>Tarima o caja</th><th>Equipo</th><th>Estiba</th></tr></thead>
         <tbody>${filas}</tbody>
       </table>
       </div>`;
@@ -349,23 +375,29 @@ export function iniciarDashboard(idContenedor, { puedeConfigurar = false } = {})
   function pintarMapaRacks() {
     const totalNivel = RACKS.length * POSICIONES;
     const total = totalNivel * NIVELES.length;
-    const ids = Object.keys(ocupadas);
+    const ids = Object.keys(ocupadas).filter(id => estadoCelda(ocupadas[id]) !== "libre");
+    const completas = ids.filter(id => estadoCelda(ocupadas[id]) === "completa").length;
+    const piezasPorRack = Object.fromEntries(RACKS.map(r => [r, 0]));
+    ids.forEach(id => { piezasPorRack[id[0]] += piezasDeCelda(ocupadas[id]).length; });
+    const totalPiezas = Object.values(piezasPorRack).reduce((a, b) => a + b, 0);
     el("rack-resumen").textContent =
-      `${ids.length} de ${total} ubicaciones ocupadas (${Math.round((ids.length / total) * 100)}%).`;
+      `${totalPiezas} piezas en ${ids.length} de ${total} ubicaciones ocupadas (${Math.round((ids.length / total) * 100)}%): ${completas} completas y ${ids.length - completas} parciales.`;
 
     const encabezados = RACKS.map(rack => {
       const conteo = ids.filter(id => id.startsWith(rack)).length;
-      return `<th scope="col">${rack}<small>${Math.round((conteo / (POSICIONES * NIVELES.length)) * 100)}%</small></th>`;
+      const piezasRack = piezasPorRack[rack];
+      return `<th scope="col">${rack}<small>${Math.round((conteo / (POSICIONES * NIVELES.length)) * 100)}%</small><small>${piezasRack} ${piezasRack === 1 ? "pieza" : "piezas"}</small></th>`;
     }).join("");
 
     const filas = Array.from({ length: POSICIONES }, (_, i) => i + 1).map(posicion => {
       const celdas = RACKS.map(rack => {
         const llenos = ocupadosDePosicion(rack, posicion);
+        const completos = completosDePosicion(rack, posicion);
         const estado = nivelActivo === null
-          ? (llenos === 0 ? "" : llenos === NIVELES.length ? "ocupado" : "parcial")
-          : (ocupadas[idUbicacion(rack, posicion, nivelActivo)] ? "ocupado" : "");
+          ? (llenos === 0 ? "" : completos === NIVELES.length ? "ocupado" : "parcial")
+          : ({ libre: "", parcial: "parcial", completa: "ocupado" })[estadoCelda(ocupadas[idUbicacion(rack, posicion, nivelActivo)])];
         const activa = posicionActiva?.rack === rack && posicionActiva?.posicion === posicion ? "activa" : "";
-        return `<td><button type="button" class="rack-celda ${estado} ${activa}" data-rack="${rack}" data-posicion="${posicion}" title="${llenos} de ${NIVELES.length} niveles ocupados">${rack}${posicion}</button></td>`;
+        return `<td><button type="button" class="rack-celda ${estado} ${activa}" data-rack="${rack}" data-posicion="${posicion}" title="${llenos} de ${NIVELES.length} niveles con piezas, ${completos} completos">${rack}${posicion}</button></td>`;
       }).join("");
       return `<tr>${celdas}</tr>`;
     }).join("");
@@ -457,6 +489,36 @@ export function iniciarDashboard(idContenedor, { puedeConfigurar = false } = {})
     actualizar();
   });
 
+  // ---- Carga y actualización ----
+  // La carga completa lee todo una vez. "Actualizar" solo pide lo que cambió desde la última lectura y lo mezcla:
+  // registros nuevos, fichas modificadas y la ocupación de los racks.
+  const INTERVALO_AUTOMATICO_MS = 2 * 60 * 1000;
+  let idsRegistros = new Set();
+  let cursores = { registros: 0, piezas: 0, liberaciones: 0 };
+  let ocupado = false;
+
+  const milis = (marca) => marca?.toMillis?.() || 0;
+  const maximo = (lista, campo) => lista.reduce((m, x) => Math.max(m, milis(x[campo])), 0);
+  const horaActual = () => new Date().toLocaleTimeString("es-MX");
+
+  function marcarCursores() {
+    cursores = {
+      registros: maximo(registros, "creadoEn"),
+      piezas: maximo(piezas, "actualizadoEn"),
+      liberaciones: maximo(piezas, "liberadoEn")
+    };
+  }
+
+  function mostrarEstado(texto) {
+    el("estado-actualizacion").textContent = texto;
+  }
+
+  function bloquear(valor) {
+    ocupado = valor;
+    el("btn-actualizar").disabled = valor;
+    el("btn-recarga-completa").disabled = valor;
+  }
+
   async function recargar() {
     try {
       const [snapRegistros, snapPiezas] = await Promise.all([
@@ -464,15 +526,76 @@ export function iniciarDashboard(idContenedor, { puedeConfigurar = false } = {})
         leerColeccion(collection(db, "piezas"))
       ]);
       registros = snapRegistros.docs.map(d => d.data());
+      idsRegistros = new Set(snapRegistros.docs.map(d => d.id));
       piezas = snapPiezas.docs.map(d => d.data());
       piezaPorFolio = new Map(piezas.map(p => [p.folio, p]));
+      marcarCursores();
       actualizar();
+      mostrarEstado(`Datos completos a las ${horaActual()} · se actualiza solo cada 2 minutos`);
     } catch (error) {
       el("zona-tabla").innerHTML = '<div class="vacio">Error al cargar los registros.</div>';
     }
     await recargarRacks();
   }
 
+  async function recargarOcupacion() {
+    const ocupacion = await leerDocumento(doc(db, "config", "ocupacion"));
+    ocupadas = ocupacion.data()?.ubicaciones || {};
+    pintarMapaRacks();
+  }
+
+  async function actualizarCambios() {
+    if (ocupado) return;
+    bloquear(true);
+    try {
+      if (!cursores.registros) {
+        await recargar();
+        return;
+      }
+      const desde = (ms) => Timestamp.fromMillis(ms);
+      const [snapRegistros, snapModificadas, snapLiberadas] = await Promise.all([
+        leerColeccion(query(collection(db, "registros"), where("creadoEn", ">=", desde(cursores.registros)), orderBy("creadoEn", "desc"))),
+        leerColeccion(query(collection(db, "piezas"), where("actualizadoEn", ">=", desde(cursores.piezas)))),
+        leerColeccion(query(collection(db, "piezas"), where("liberadoEn", ">=", desde(cursores.liberaciones))))
+      ]);
+
+      const nuevos = snapRegistros.docs.filter(d => !idsRegistros.has(d.id));
+      nuevos.forEach(d => idsRegistros.add(d.id));
+      if (nuevos.length) {
+        registros = [...nuevos.map(d => d.data()), ...registros].sort((a, b) => milis(b.creadoEn) - milis(a.creadoEn));
+      }
+      const cambiadas = [...snapModificadas.docs, ...snapLiberadas.docs].map(d => d.data());
+      cambiadas.forEach(p => piezaPorFolio.set(p.folio, p));
+      if (cambiadas.length) piezas = [...piezaPorFolio.values()];
+
+      marcarCursores();
+      actualizar();
+      await recargarOcupacion();
+      mostrarEstado(`Actualizado a las ${horaActual()} · ${nuevos.length} ${nuevos.length === 1 ? "registro nuevo" : "registros nuevos"} · se actualiza solo cada 2 minutos`);
+    } catch (error) {
+      console.error("No se pudo actualizar:", error);
+      mostrarEstado("No se pudo actualizar. Inténtalo de nuevo en un momento.");
+    } finally {
+      bloquear(false);
+    }
+  }
+
+  async function recargaCompleta() {
+    if (ocupado) return;
+    bloquear(true);
+    mostrarEstado("Cargando todos los datos...");
+    try {
+      await recargar();
+    } finally {
+      bloquear(false);
+    }
+  }
+
+  el("btn-actualizar").addEventListener("click", actualizarCambios);
+  el("btn-recarga-completa").addEventListener("click", recargaCompleta);
+  // Solo se actualiza solo mientras la pestaña está a la vista.
+  setInterval(() => { if (document.visibilityState === "visible") actualizarCambios(); }, INTERVALO_AUTOMATICO_MS);
+
   recargar();
-  return { recargar };
+  return { recargar: actualizarCambios, recargarCompleto: recargaCompleta };
 }
