@@ -4,7 +4,7 @@ import { ALTURA_MAXIMA_CATALOGO } from "./catalogo.js";
 // No depende de Firebase: lo usan la página y el script de carga.
 
 export const RACKS = "ABCDEFGHIJKL".split("");
-export const POSICIONES = 30;
+export const POSICIONES = 5;
 export const NIVELES = [0, 1, 2, 3, 4, 5];
 export const NIVELES_CHICA = [0, 1, 2, 3];
 export const NIVELES_GRANDE = [4, 5];
@@ -23,7 +23,7 @@ export function idUbicacion(rack, posicion, nivel) {
 }
 
 export function parsearUbicacion(texto) {
-  const m = /^([A-L])([1-9]|[12]\d|30)-N([0-5])$/.exec(texto || "");
+  const m = /^([A-L])([1-5])-N([0-5])$/.exec(texto || "");
   return m ? { rack: m[1], posicion: Number(m[2]), nivel: Number(m[3]) } : null;
 }
 
