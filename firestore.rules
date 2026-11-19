@@ -23,6 +23,11 @@ service cloud.firestore {
       return estaAutenticado() && rolDeUsuario() in ['operador', 'trabajador'];
     }
 
+    // Cualquier rol válido. Tener sesión no basta: una cuenta sin perfil en /usuarios no puede leer datos.
+    function tieneRol() {
+      return esAdministrador() || esAnalista() || esOperador();
+    }
+
     // Campos que solo puede escribir el analista.
     function camposDeLiberacion() {
       return ['fechaLiberacion', 'liberadoPor', 'liberadoEn'];
@@ -39,12 +44,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Ficha de cada pieza, con el folio como ID. Todos los usuarios con sesión la pueden leer.
+    // Ficha de cada pieza, con el folio como ID. Todos los usuarios con un rol válido la pueden leer.
     // - El operador la crea/actualiza al registrar un movimiento, pero no toca la fecha de liberación.
     // - El analista solo puede escribir los campos de liberación.
     // Nadie la puede borrar.
     match /piezas/{folio} {
-      allow read: if estaAutenticado();
+      allow read: if tieneRol();
       allow create: if esOperador()
         && request.resource.data.folio == folio
         && !request.resource.data.keys().hasAny(camposDeLiberacion())
@@ -60,19 +65,19 @@ service cloud.firestore {
 
     // Pesos de prioridad: el primer operador de cada periodo los recalcula al registrar.
     match /config/pesos {
-      allow read: if estaAutenticado();
+      allow read: if tieneRol();
       allow write: if esOperador() || esAdministrador();
     }
 
     // Mapa de ubicaciones ocupadas: lo actualiza el operador al registrar un movimiento.
     match /config/ocupacion {
-      allow read: if estaAutenticado();
+      allow read: if tieneRol();
       allow write: if esOperador();
     }
 
     // Frecuencia del recálculo: solo la cambia el administrador.
     match /config/ajustes {
-      allow read: if estaAutenticado();
+      allow read: if tieneRol();
       allow write: if esAdministrador();
     }
 

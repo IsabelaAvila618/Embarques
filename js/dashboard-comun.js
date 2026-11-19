@@ -325,7 +325,7 @@ export function iniciarDashboard(idContenedor, { puedeConfigurar = false } = {})
   function pintarDetalleRack() {
     const caja = el("rack-detalle");
     if (!posicionActiva) {
-      caja.innerHTML = '<div class="vacio">Elige una posición del mapa para ver sus piezas.</div>';
+      caja.innerHTML = '<div class="vacio">Elige un rack del mapa para ver sus piezas.</div>';
       return;
     }
     const { rack, posicion } = posicionActiva;
@@ -361,7 +361,7 @@ export function iniciarDashboard(idContenedor, { puedeConfigurar = false } = {})
       return `<div class="estante-nivel"><span class="estante-etiqueta">N${n}<small>${ALTURA_NIVEL[n]} in</small></span><div class="estante-barra ${estadoCelda(celda)}">${tarimas}</div></div>`;
     }).join("");
     caja.innerHTML = `
-      <h4>Posición ${rack}${posicion}</h4>
+      <h4>Rack ${rack}${posicion}</h4>
       <div class="estante">${esquema}</div>
       <p class="estante-leyenda"><i class="completa"></i> Estiba completa <i class="abierta"></i> Admite más piezas encima. El número es la cantidad de piezas apiladas.</p>
       <div class="tabla-ajustable">

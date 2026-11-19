@@ -501,14 +501,14 @@ protegerPagina("operador").then((usuario) => {
 
     const zonaOrigen = zonaOrigenElegida();
     if (!zonaOrigen) {
-      mostrarMensaje("Elige el rack, la posición y el nivel de origen.", "error");
+      mostrarMensaje("Elige la zona, el rack y el nivel de origen.", "error");
       return;
     }
 
     const esRack = campo("zona-destino").value === ZONA_RACK;
     const zonaDestino = esRack ? ubicacionElegida() : campo("zona-destino").value;
     if (esRack && !zonaDestino) {
-      mostrarMensaje("Elige el rack, la posición y el nivel.", "error");
+      mostrarMensaje("Elige la zona, el rack y el nivel.", "error");
       return;
     }
 

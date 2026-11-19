@@ -4,6 +4,7 @@ import { ALTURA_MAXIMA_CATALOGO } from "./catalogo.js";
 // No depende de Firebase: lo usan la página y el script de carga.
 
 export const RACKS = "ABCDEFGHIJKL".split("");
+// Cada zona (A a L) tiene 5 racks numerados 1 a 5, y cada rack tiene los niveles N0 a N5 (ubicación "A1-N0" a "A5-N5").
 export const POSICIONES = 5;
 export const NIVELES = [0, 1, 2, 3, 4, 5];
 export const NIVELES_CHICA = [0, 1, 2, 3];
@@ -125,7 +126,7 @@ export function zonaDeRack(rack) {
 }
 
 function prioridadUbicacion({ rack, posicion, nivel }) {
-  return RACKS.indexOf(rack) * 180 + (posicion - 1) * 6 + nivel + 1;
+  return RACKS.indexOf(rack) * POSICIONES * NIVELES.length + (posicion - 1) * 6 + nivel + 1;
 }
 
 // Una pieza es chica solo si sus tres medidas están por debajo del límite.
